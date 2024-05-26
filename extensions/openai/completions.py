@@ -208,8 +208,8 @@ def convert_history(history):
         elif role == "system":
             system_message = content
         # elif role == "function":
-            # contains result of function call, for example: {'role': 'function', 'name': 'getFridgeTemperature', 'content': '4.2'}]
-            # the best way to inject user's prompt + result of the function but i continue in the ugly way
+        # contains result of function call, for example: {'role': 'function', 'name': 'getFridgeTemperature', 'content': '4.2'}]
+        # the best way to inject user's prompt + result of the function but i continue in the ugly way
     if not user_input_last:
         user_input = ""
 
@@ -390,11 +390,11 @@ def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, p
 
         # Hack for functions
         def is_json(myjson):
-         try:
-           json.loads(myjson)
-         except ValueError as e:
-           return False
-         return True
+            try:
+                json.loads(myjson)
+            except ValueError as e:
+                return False
+            return True
 
         message_type = "content"
         role = "assistant"
