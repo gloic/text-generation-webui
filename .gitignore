@@ -42,6 +42,7 @@ package.json
 package-lock.json
 Thumbs.db
 wandb
+*.iml
 
 # ignore user docker config and top level links to docker files
 /docker-compose.yaml
