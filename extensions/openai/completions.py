@@ -126,6 +126,22 @@ def process_parameters(body, is_legacy=False):
 
     return generate_params
 
+def handle_function_result(history):
+    function_result_prompt = "Here is the function's result of previously called functions:\n"
+    original_request = ""
+    for entry in reversed(history):
+        if entry["role"] == 'function':
+            function_name = entry["name"]
+            function_result = entry["content"]
+            function_result_prompt = function_result_prompt + '-"' + function_name + '":"' + function_result + '"'
+        elif entry["role"] == 'user':
+            original_request = entry["content"]
+
+    function_result_prompt = function_result_prompt + "\nWith this information, please answer to the user's request or call another function if you need."
+    function_result_prompt = function_result_prompt + "\n\n" + original_request
+
+    print(function_result_prompt)
+    return function_result_prompt
 
 def convert_history(history):
     '''
@@ -196,7 +212,7 @@ def convert_history(history):
                 current_message = ""
 
             current_message = content
-        elif role == "assistant" or role == "function":
+        elif role == "assistant":
             current_reply = content
             user_input_last = False
             if current_message:
@@ -207,32 +223,35 @@ def convert_history(history):
                 chat_dialogue.append(['', current_reply])
         elif role == "system":
             system_message = content
-        # elif role == "function":
-        # contains result of function call, for example: {'role': 'function', 'name': 'getFridgeTemperature', 'content': '4.2'}]
-        # the best way to inject user's prompt + result of the function but i continue in the ugly way
+        elif role == "function":
+            function_result_prompt = handle_function_result(history)
+            user_input = function_result_prompt
+            user_input_last = True
+            if current_message:
+                chat_dialogue.append([current_message, ''])
+                current_message = ""
     if not user_input_last:
         user_input = ""
 
     return user_input, system_message, {'internal': chat_dialogue, 'visible': copy.deepcopy(chat_dialogue)}
 
 def get_prompt_functions(functions: str) -> str:
-    json_template = '{"name": "functionName", "arguments": "{ \"arg1\": \"value\" }"}'
-    prompt_functions = "Here is some functions you can use if you need:\n"
-    prompt_functions += json.dumps(functions)
-    prompt_functions += "\nIf you need to use a function to get more information, answer with this JSON syntax:" + json_template
-    return prompt_functions
+    json_template = '{"name": "functionName", "arguments": "{ \\\"arg1\": \\\"value\\\" }"}'
+    json_empty_template = '{"name": "functionName", "arguments": "{}"}'
+    functions_dump = json.dumps(functions)
+    functionss = ("In order to fulfill user's request, you have access to functions calling. Some case may be complex so you'll need to call several functions. "
+                  "As YOU CAN ONLY CALL ONE FUNCTION AT THE TIME, you need to select the most adapted function if you need more information, once the result provided, you'll be able to choose another one if needed."                  
+                  "Available functions:" + functions_dump +
+                  "\nIf you need to use a function to get more information to answer user's request, please respond with this syntax only : '" + json_template + "' or respond '" + json_empty_template + "' if the function has no parameters.\n" +
+                  "Don't forget to double escape the quotes around parameters because this syntax is very specific\n"
+                  "IMPORTANT: \n"
+                  "- Only one call at the time"
+                  "- Respect the syntax above"
+                  "- no text or explanation when using function calling, only respond with the syntax above!")
+    return functionss
 
 
 def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, prompt_only=False) -> dict:
-    print("#######################################")
-    print("input raw request\n")
-    print(body, end="\n\n")
-    # if body.get('functions', []):
-    #     raise InvalidRequestError(message="functions is not supported.", param='functions')
-
-    # if body.get('function_call', ''):
-    #     raise InvalidRequestError(message="function_call is not supported.", param='function_call')
-
     if 'messages' not in body:
         raise InvalidRequestError(message="messages is required", param='messages')
 
@@ -334,12 +353,6 @@ def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, p
         return chunk
 
     # generate reply #######################################
-    print("#######################################")
-    print("final prompt sent to model\n")
-    print("custom_system_message")
-    print(custom_system_message, end="\n\n")
-    print("user_input")
-    print(user_input, end="\n\n")
 
     prompt = generate_chat_prompt(user_input, generate_params, _continue=continue_)
     if prompt_only:
@@ -428,7 +441,7 @@ def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, p
 
         print("#######################################")
         print("model's response")
-        print(resp, end="\n\n")
+        print(resp['choices'][0]["message"], end="\n\n")
         yield resp
 
 
