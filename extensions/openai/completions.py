@@ -1,4 +1,5 @@
 import base64
+import json
 import copy
 import re
 import time
@@ -195,7 +196,7 @@ def convert_history(history):
                 current_message = ""
 
             current_message = content
-        elif role == "assistant":
+        elif role == "assistant" or role == "function":
             current_reply = content
             user_input_last = False
             if current_message:
@@ -206,30 +207,42 @@ def convert_history(history):
                 chat_dialogue.append(['', current_reply])
         elif role == "system":
             system_message = content
-
+        # elif role == "function":
+            # contains result of function call, for example: {'role': 'function', 'name': 'getFridgeTemperature', 'content': '4.2'}]
+            # the best way to inject user's prompt + result of the function but i continue in the ugly way
     if not user_input_last:
         user_input = ""
 
     return user_input, system_message, {'internal': chat_dialogue, 'visible': copy.deepcopy(chat_dialogue)}
 
+def get_prompt_functions(functions: str) -> str:
+    json_template = '{"name": "functionName", "arguments": "{ \"arg1\": \"value\" }"}'
+    prompt_functions = "Here is some functions you can use if you need:\n"
+    prompt_functions += json.dumps(functions)
+    prompt_functions += "\nIf you need to use a function to get more information, answer with this JSON syntax:" + json_template
+    return prompt_functions
+
 
 def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, prompt_only=False) -> dict:
-    if body.get('functions', []):
-        raise InvalidRequestError(message="functions is not supported.", param='functions')
+    print("#######################################")
+    print("input raw request\n")
+    print(body, end="\n\n")
+    # if body.get('functions', []):
+    #     raise InvalidRequestError(message="functions is not supported.", param='functions')
 
-    if body.get('function_call', ''):
-        raise InvalidRequestError(message="function_call is not supported.", param='function_call')
+    # if body.get('function_call', ''):
+    #     raise InvalidRequestError(message="function_call is not supported.", param='function_call')
 
     if 'messages' not in body:
         raise InvalidRequestError(message="messages is required", param='messages')
 
     messages = body['messages']
+    prompt_functions_result = None
     for m in messages:
         if 'role' not in m:
             raise InvalidRequestError(message="messages: missing role", param='messages')
         elif m['role'] == 'function':
-            raise InvalidRequestError(message="role: function is not supported.", param='messages')
-
+            prompt_functions_result = 'Previous function result: ' + m['name'] + '=' + json.dumps(m['content']) + '.\nWith this information, you can call another function or anwser to the user\'s request.'
         if 'content' not in m and "image_url" not in m:
             raise InvalidRequestError(message="messages: missing content", param='messages')
 
@@ -268,6 +281,13 @@ def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, p
 
     # History
     user_input, custom_system_message, history = convert_history(messages)
+
+    # Complete prompt with functions and function result
+    if body.get('tools', []):
+        if prompt_functions_result is None:
+            custom_system_message = get_prompt_functions(body['tools'])
+        else:
+            custom_system_message = prompt_functions_result + "\n" + get_prompt_functions(body['tools']) + "\n\n"
 
     generate_params.update({
         'mode': body['mode'],
@@ -314,6 +334,13 @@ def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, p
         return chunk
 
     # generate reply #######################################
+    print("#######################################")
+    print("final prompt sent to model\n")
+    print("custom_system_message")
+    print(custom_system_message, end="\n\n")
+    print("user_input")
+    print(user_input, end="\n\n")
+
     prompt = generate_chat_prompt(user_input, generate_params, _continue=continue_)
     if prompt_only:
         yield {'prompt': prompt}
@@ -360,6 +387,23 @@ def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, p
 
         yield chunk
     else:
+
+        # Hack for functions
+        def is_json(myjson):
+         try:
+           json.loads(myjson)
+         except ValueError as e:
+           return False
+         return True
+
+        message_type = "content"
+        role = "assistant"
+        # Checking if the answer is made of json is necessary when some tools are available but the model doesn't use any.
+        if body.get('tools', []) and is_json(answer):
+            message_type = "function_call"
+            role = "function"
+            answer = json.loads(answer)
+
         resp = {
             "id": cmpl_id,
             "object": object_type,
@@ -368,7 +412,7 @@ def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, p
             resp_list: [{
                 "index": 0,
                 "finish_reason": stop_reason,
-                "message": {"role": "assistant", "content": answer}
+                "message": {"role": role, message_type: answer}
             }],
             "usage": {
                 "prompt_tokens": token_count,
@@ -382,6 +426,9 @@ def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, p
         # else:
         #     resp[resp_list][0]["logprobs"] = None
 
+        print("#######################################")
+        print("model's response")
+        print(resp, end="\n\n")
         yield resp
 
 
