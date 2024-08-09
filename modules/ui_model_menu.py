@@ -237,6 +237,11 @@ def load_model_wrapper(selected_model, loader, autoload=False):
                 if 'instruction_template' in settings:
                     output += '\n\nIt seems to be an instruction-following model with template "{}". In the chat tab, instruct or chat-instruct modes should be used.'.format(settings['instruction_template'])
 
+                # Add VRAM information
+                allocated_memory = torch.cuda.memory_allocated() / 1024 ** 3
+                total_memory = torch.cuda.mem_get_info()[1] / 1024 ** 3
+                output += f"\n\nVRAM: `{allocated_memory:.2f} / {total_memory:.2f}` GB"
+
                 yield output
             else:
                 yield f"Failed to load `{selected_model}`."
