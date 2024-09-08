@@ -1132,6 +1132,10 @@ def handle_character_menu_change(state):
 
     convert_to_markdown.cache_clear()
 
+    histories_ = None
+    if len(histories) > 0:
+        histories_ = histories[0][1]
+
     return [
         history,
         html,
@@ -1140,7 +1144,7 @@ def handle_character_menu_change(state):
         picture,
         greeting,
         context,
-        gr.update(choices=histories, value=histories[0][1]),
+        gr.update(choices=histories, value=histories_),
     ]
 
 
