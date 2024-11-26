@@ -125,9 +125,9 @@ def generate_chat_prompt(user_input, state, **kwargs):
     insert_pos = len(messages)
     for user_msg, assistant_msg in reversed(history):
         user_msg = user_msg.strip()
-        assistant_msg = assistant_msg.strip()
 
         if assistant_msg:
+            assistant_msg = assistant_msg.strip()
             messages.insert(insert_pos, {"role": "assistant", "content": assistant_msg})
 
         if user_msg not in ['', '<|BEGIN-VISIBLE-CHAT|>']:

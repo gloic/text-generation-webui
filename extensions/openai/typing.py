@@ -88,7 +88,7 @@ class ChatCompletionRequestParams(BaseModel):
     model: str | None = Field(default=None, description="Unused parameter. To change the model, use the /v1/internal/model/load endpoint.")
     frequency_penalty: float | None = 0
     function_call: str | dict | None = Field(default=None, description="Unused parameter.")
-    functions: List[dict] | None = Field(default=None, description="Unused parameter.")
+    tools: List[dict] | None = Field(default=None, description="Unused parameter.")
     logit_bias: dict | None = None
     max_tokens: int | None = None
     n: int | None = Field(default=1, description="Unused parameter.")

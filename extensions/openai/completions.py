@@ -1,5 +1,6 @@
 import base64
 import copy
+import json
 import re
 import time
 from collections import deque
@@ -28,6 +29,7 @@ from modules.text_generation import (
     generate_reply,
     get_reply_from_output_ids
 )
+from extensions.openai.function_calling import handle_function_result, get_prompt_functions, is_json
 
 
 class LogitsBiasProcessor(LogitsProcessor):
@@ -207,7 +209,12 @@ def convert_history(history):
                 chat_dialogue.append(['', current_reply])
         elif role == "system":
             system_message = content
-
+        elif role == "function":
+            user_input = handle_function_result(history)
+            user_input_last = True
+            if current_message:
+                chat_dialogue.append([current_message, ''])
+                current_message = ""
     if not user_input_last:
         user_input = ""
 
@@ -215,22 +222,17 @@ def convert_history(history):
 
 
 def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, prompt_only=False) -> dict:
-    if body.get('functions', []):
-        raise InvalidRequestError(message="functions is not supported.", param='functions')
-
-    if body.get('function_call', ''):
-        raise InvalidRequestError(message="function_call is not supported.", param='function_call')
-
     if 'messages' not in body:
         raise InvalidRequestError(message="messages is required", param='messages')
 
     messages = body['messages']
+    prompt_functions_result = None
     for m in messages:
         if 'role' not in m:
             raise InvalidRequestError(message="messages: missing role", param='messages')
         elif m['role'] == 'function':
-            raise InvalidRequestError(message="role: function is not supported.", param='messages')
-
+            prompt_functions_result = 'Previous function result: ' + m['name'] + '=' + json.dumps(
+                m['content']) + '.\nWith this information, you can call another function or answer to the user\'s request.'
         if 'content' not in m and "image_url" not in m:
             raise InvalidRequestError(message="messages: missing content", param='messages')
 
@@ -269,6 +271,13 @@ def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, p
 
     # History
     user_input, custom_system_message, history = convert_history(messages)
+
+    # Complete prompt with functions and function result
+    if body.get('tools', []):
+        if prompt_functions_result is None:
+            custom_system_message = get_prompt_functions(body['tools'])
+        else:
+            custom_system_message = prompt_functions_result + "\n" + get_prompt_functions(body['tools']) + "\n\n"
 
     generate_params.update({
         'mode': body['mode'],
@@ -361,6 +370,16 @@ def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, p
 
         yield chunk
     else:
+        # Checking if the answer is made of json is necessary when some tools are available but the model doesn't use any.
+        if body.get('tools', []) and is_json(answer):
+            message_type = "function_call"
+            role = "function"
+            print(answer)
+            answer = json.loads(answer)
+        else:
+            message_type = "content"
+            role = "assistant"
+
         resp = {
             "id": cmpl_id,
             "object": object_type,
@@ -369,7 +388,7 @@ def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, p
             resp_list: [{
                 "index": 0,
                 "finish_reason": stop_reason,
-                "message": {"role": "assistant", "content": answer}
+                "message": {"role": role, message_type: answer}
             }],
             "usage": {
                 "prompt_tokens": token_count,
@@ -383,6 +402,9 @@ def chat_completions_common(body: dict, is_legacy: bool = False, stream=False, p
         # else:
         #     resp[resp_list][0]["logprobs"] = None
 
+        print("#######################################")
+        print("model's response")
+        print(resp['choices'][0]["message"], end="\n\n")
         yield resp
 
 
