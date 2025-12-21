@@ -156,6 +156,7 @@ def list_model_elements():
         'bf16',
         'autosplit',
         'enable_tp',
+        'ignore_vision',
         'tp_backend',
         'no_flash_attn',
         'no_xformers',

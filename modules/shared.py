@@ -124,6 +124,7 @@ group.add_argument('--quant_type', type=str, default='nf4', help='quant_type for
 # ExLlamaV3
 group = parser.add_argument_group('ExLlamaV3')
 group.add_argument('--enable-tp', '--enable_tp', action='store_true', help='Enable Tensor Parallelism (TP) to split the model across GPUs.')
+group.add_argument('--ignore-vision', '--ignore_vision', action='store_true', help='Ignore vision.')
 group.add_argument('--tp-backend', type=str, default='native', help='The backend for tensor parallelism. Valid options: native, nccl. Default: native.')
 
 # ExLlamaV2
