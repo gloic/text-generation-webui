@@ -156,6 +156,7 @@ def list_model_elements():
         'use_double_quant',
         'bf16',
         'enable_tp',
+        'ignore_vision',
         'tp_backend',
         'cfg_cache',
         'no_use_fast',

@@ -193,7 +193,7 @@ class Exllamav3Model:
 
         # Load vision model component (ExLlamaV3 native)
         vision_model = None
-        if "vision_config" in config.config_dict:
+        if not shared.args.ignore_vision and "vision_config" in config.config_dict:
             logger.info("Vision component detected in model config. Attempting to load...")
             try:
                 vision_model = Model.from_config(config, component="vision")
@@ -202,7 +202,7 @@ class Exllamav3Model:
             except Exception as e:
                 logger.warning(f"Vision model loading failed (multimodal disabled): {e}")
         else:
-            logger.info("No vision component in model config. Skipping multimodal setup.")
+            logger.info("Vision ignored or no vision component in model config. Skipping multimodal setup.")
 
         generator = Generator(
             model=model,

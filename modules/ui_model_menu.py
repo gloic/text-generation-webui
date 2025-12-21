@@ -62,6 +62,7 @@ def create_ui():
                                 '* You can load either a pre-built TensorRT engine or a regular HF model. '
                                 'HF models will be compiled to a TensorRT engine automatically on each load (this can take a while).'
                             )
+                            shared.gradio['ignore_vision'] = gr.Checkbox(label="ignore_vision", value=shared.args.ignore_vision, info='Ignore vision.')
 
                             # Multimodal
                             with gr.Accordion("Multimodal (vision)", open=False, elem_classes='tgw-accordion') as shared.gradio['mmproj_accordion']:

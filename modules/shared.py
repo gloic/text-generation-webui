@@ -136,6 +136,7 @@ group.add_argument('--quant_type', type=str, default='nf4', help='quant_type for
 group = parser.add_argument_group('ExLlamaV3')
 group.add_argument('--gpu-split', type=str, help='Comma-separated list of VRAM (in GB) to use per GPU device for model layers. Example: 20,7,7.')
 group.add_argument('--enable-tp', '--enable_tp', action='store_true', help='Enable Tensor Parallelism (TP) to split the model across GPUs.')
+group.add_argument('--ignore-vision', '--ignore_vision', action='store_true', help='Ignore vision.')
 group.add_argument('--tp-backend', type=str, default='native', help='The backend for tensor parallelism. Valid options: native, nccl. Default: native.')
 group.add_argument('--cfg-cache', action='store_true', help='Create an additional cache for CFG negative prompts. Necessary to use CFG with that loader.')
 

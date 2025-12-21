@@ -74,6 +74,7 @@ loaders_and_params = OrderedDict({
         'ctx_size_draft',
         'speculative_decoding_accordion',
         'enable_tp',
+        'ignore_vision',
         'tp_backend',
     ],
     'TensorRT-LLM': [
