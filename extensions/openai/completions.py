@@ -104,10 +104,17 @@ def process_multimodal_content(content):
     if isinstance(content, str):
         return content
 
+    if content is None:
+        return ""
+
     if isinstance(content, list):
         text_parts = []
         image_placeholders = ""
         for item in content:
+            if isinstance(item, str):
+                text_parts.append(item)
+                continue
+
             if not isinstance(item, dict):
                 continue
 
@@ -117,7 +124,7 @@ def process_multimodal_content(content):
             elif item_type == 'image_url':
                 image_placeholders += "<__media__>"
 
-        final_text = ' '.join(text_parts)
+        final_text = '\n'.join(text_parts)
         if image_placeholders:
             return f"{image_placeholders}\n\n{final_text}"
         else:
@@ -139,12 +146,12 @@ def convert_history(history):
     system_message = ""
 
     for entry in history:
-        content = entry["content"]
+        content = entry.get("content", "")
         role = entry["role"]
 
+        content = process_multimodal_content(content)
+
         if role == "user":
-            # Extract text content (images handled by model-specific code)
-            content = process_multimodal_content(content)
             user_input = content
             user_input_last = True
 
